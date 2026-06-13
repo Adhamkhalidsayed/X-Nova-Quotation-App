@@ -1,0 +1,21 @@
+# Environments
+venv_mac/
+venv_win/
+__pycache__/
+*.pyc
+
+# PyInstaller
+build/
+dist/
+*.spec
+X Nova Quotation.app/
+
+# macOS
+.DS_Store
+
+# User Data / Secrets
+client_secret.json
+token.json
+history.json
+config.json
+*.pdf

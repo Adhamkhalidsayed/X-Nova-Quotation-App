@@ -1,0 +1,82 @@
+{
+    "Control System": [
+        {
+            "name": "Akubela 2 Gang Zigbee 3.0 Switch Module",
+            "desc": "The 2-gang Switch Module fits inside the wall switch box and connects to the gateway via the ZigBee protocol, enabling remote control and smart home integration. It is one of the key products for smart retrofit solutions.",
+            "price": "$58",
+            "image": "images/Akubela 2 Gang Zigbee 3.0 Switch Module.png"
+        },
+        {
+            "name": "Akubela - IR Remote Control\r \n[AKBL-IR22]",
+            "desc": "Enjoy the convenience of remote control and real-time data access. With versatile features such as voice control compatibility with Alexa, Google Home.",
+            "price": "$49",
+            "image": "images/Akubela - IR Remote Control   [AKBL-IR22].png"
+        },
+        {
+            "name": "Aqara - Dual Relay Module T2",
+            "desc": "A compact Zigbee 3.0 smart relay designed to automate lights, motors, garage doors, curtains, and other wired devices without replacing existing switches. It supports dual-channel control, dry/wet contact modes and integration with Matter, Apple HomeKit, Google Home, Alexa, and Aqara ecosystems.",
+            "price": "$69.97",
+            "image": "images/Aqara Dual Relay Module T2.jpg"
+        },
+        {
+            "name": "Akubela - IR Remote Control",
+            "desc": "Enjoy the convenience of remote control and real-time data access. With versatile features such as voice control compatibility with Alexa, Google Home.",
+            "price": "$49",
+            "image": "images/Akubela - IR Remote Control   [AKBL-IR22].png"
+        },
+        {
+            "name": "MOES - ZM-108-M Zigbee Smart Curtain Module",
+            "desc": "A compact smart controller designed for motorized roller shutters, blinds, and curtains. It enables remote control, automation, scheduling, and voice assistant integration through Zigbee smart home systems such as Home Assistant.",
+            "price": "$23.06",
+            "image": "images/MOES - ZM-108-M Zigbee Smart Curtain Module.png"
+        }
+    ],
+    "Network System": [
+        {
+            "name": "Rack - Perla 6U 60cm x 45cm",
+            "desc": "A compact 6-unit wall-mount/server rack measuring 60 \u00d7 45 cm, ideal for organizing and housing networking, server, and surveillance equipment in a neat, secure enclosure.",
+            "price": "$72.81",
+            "image": "images/Perla Rack 6U 60cm x 45cm.jpg"
+        },
+        {
+            "name": "Switch - Hikvision DS-XS10G-P 8 Port Gigabit Unmanaged POE",
+            "desc": "with 8\u00d7 10/100/1000 Mbps PoE RJ45 ports and 2\u00d7 10/100/1000 Mbps RJ45 ports. It delivers up to 60 W total PoE power (up to 30 W per port), supports desktop or wall-mounted installation, and offers simple plug-and-play connectivity for network devices.",
+            "price": "$46.33",
+            "image": "images/Hikvision DS-XS10G-P 8 Port Gigabit Unmanaged POE Switch.png"
+        },
+        {
+            "name": "Patch Panel - Legrand 24-Port",
+            "desc": "unloaded panel compatible with Cat5e, Cat6, and Cat6A keystone modules. Its metal construction with built-in cable holder ensures organized, durable cabling, making it ideal for 19-inch racks in offices, data centers, and structured network installations.",
+            "price": "$90.78",
+            "image": "images/Patch Panel - Legrand 24-Port.jpg"
+        },
+        {
+            "name": "Raspberry Pi 4B HUB",
+            "desc": "A powerful and compact smart home hub designed to run home automation platforms such as Home Assistant. Featuring a quad-core 64-bit processor, 4GB RAM, Gigabit Ethernet, dual-band Wi-Fi, Bluetooth 5.0, and USB 3.0 connectivity.",
+            "price": "$153.66",
+            "image": "images/Raspberry Pi 4B HUB.jpg"
+        },
+        {
+            "name": "Sonoff - Zigbee Dongle",
+            "desc": "A universal Zigbee gateway designed to connect and manage Zigbee smart devices through platforms like Home Assistant and Zigbee2MQTT. Powered by the TI CC2652P chipset with an external high-gain antenna.",
+            "price": "$58.63",
+            "image": "images/Sonoff - Zigbee Dongle.jpg"
+        }
+    ],
+    "Access Control System": [
+        {
+            "name": "Philips - Smart lock series 8000 DDL 801",
+            "desc": "A premium push-pull smart lock offering secure and convenient access through fingerprint, PIN code, RFID card, mobile app, and mechanical key. It features fast biometric unlocking, smart security alerts, and remote management for modern smart homes.a premium push-pull smart lock offering secure and convenient access through fingerprint, PIN code, RFID card, mobile app, and mechanical key. It features fast biometric unlocking, smart security alerts, and remote management for modern smart homes.",
+            "price": "$415.85",
+            "image": "images/Philips - Smart lock series 8000 DDL 801.png"
+        }
+    ],
+    "Smart Sensors System": [
+        {
+            "name": "Aqara - Motion and Light Sensor P2 [ML-S03D]",
+            "desc": "Offers advanced motion detection, precise light sensing, and seamless Thread integration. With up to 7m range and 170-degree field of view, it automates lighting, enhances security, and optimizes energy use. Compatible with Apple HomeKit, Alexa, and Google Assistant.",
+            "price": "$81.28",
+            "image": "images/Aqara - Motion and Light Sensor P2 [ML-S03D].png"
+        }
+    ]
+}
