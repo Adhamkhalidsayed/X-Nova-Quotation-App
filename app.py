@@ -151,9 +151,11 @@ def parse_version(v):
 def check_for_updates(manual=False):
     def fetch_version():
         try:
-            import time
-            url = f"{VERSION_URL}?t={int(time.time())}"
-            req = urllib.request.Request(url, headers={'Cache-Control': 'no-cache', 'User-Agent': 'Mozilla/5.0'})
+            req = urllib.request.Request(VERSION_URL, headers={
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'User-Agent': 'Mozilla/5.0'
+            })
             # Create an SSL context that skips certificate verification.
             # This is required on macOS packaged apps (PyInstaller) which lack
             # the system certificate store.
