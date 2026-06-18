@@ -57,93 +57,9 @@ def get_data_path(filename):
     return os.path.join(path, filename)
 
 def perform_update(download_url):
-    update_win = tk.Toplevel(root)
-    update_win.title("Updating...")
-    update_win.geometry("300x100")
-    update_win.resizable(False, False)
-    # Center the window
-    update_win.update_idletasks()
-    x = root.winfo_x() + (root.winfo_width() // 2) - 150
-    y = root.winfo_y() + (root.winfo_height() // 2) - 50
-    update_win.geometry(f"+{x}+{y}")
-    update_win.grab_set()
-
-    lbl = tk.Label(update_win, text="Downloading update...\nPlease wait, the app will restart.", font=("Montserrat", 10))
-    lbl.pack(expand=True, fill="both", padx=10, pady=10)
-
-    def update_thread():
-        try:
-            temp_dir = tempfile.mkdtemp()
-            zip_path = os.path.join(temp_dir, "update.zip")
-            
-            req = urllib.request.Request(download_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req) as response, open(zip_path, 'wb') as out_file:
-                shutil.copyfileobj(response, out_file)
-            
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(temp_dir)
-            
-            is_mac = sys.platform == 'darwin'
-            if is_mac:
-                app_path = os.path.join(temp_dir, "X Nova Quotation.app")
-                if not os.path.exists(app_path):
-                    for folder in os.listdir(temp_dir):
-                        if os.path.isdir(os.path.join(temp_dir, folder)):
-                            potential_app = os.path.join(temp_dir, folder, "X Nova Quotation.app")
-                            if os.path.exists(potential_app):
-                                app_path = potential_app
-                                break
-
-                if not os.path.exists(app_path):
-                    raise Exception("Could not find X Nova Quotation.app in downloaded update.")
-
-                script_path = os.path.join(temp_dir, "update.sh")
-                with open(script_path, "w") as f:
-                    f.write("#!/bin/bash\n")
-                    f.write("sleep 2\n")
-                    f.write('rm -rf "/Applications/X Nova Quotation.app"\n')
-                    f.write(f'cp -R "{app_path}" "/Applications/X Nova Quotation.app"\n')
-                    f.write('xattr -rd com.apple.quarantine "/Applications/X Nova Quotation.app"\n')
-                    f.write('open "/Applications/X Nova Quotation.app"\n')
-                    f.write('rm "$0"\n')
-                
-                os.chmod(script_path, 0o755)
-                subprocess.Popen([script_path], start_new_session=True)
-                os._exit(0)
-
-            else:
-                exe_path = os.path.join(temp_dir, "X Nova Quotation.exe")
-                if not os.path.exists(exe_path):
-                    for folder in os.listdir(temp_dir):
-                        if os.path.isdir(os.path.join(temp_dir, folder)):
-                            potential_exe = os.path.join(temp_dir, folder, "X Nova Quotation.exe")
-                            if os.path.exists(potential_exe):
-                                exe_path = potential_exe
-                                break
-                
-                if not os.path.exists(exe_path):
-                    raise Exception("Could not find X Nova Quotation.exe in downloaded update.")
-
-                current_exe = sys.executable
-                script_path = os.path.join(temp_dir, "update.bat")
-                with open(script_path, "w") as f:
-                    f.write("@echo off\n")
-                    f.write("timeout /t 2 /nobreak >nul\n")
-                    f.write(f'move /y "{exe_path}" "{current_exe}"\n')
-                    f.write(f'start "" "{current_exe}"\n')
-                    f.write('del "%~f0"\n')
-
-                CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
-                subprocess.Popen([script_path], creationflags=CREATE_NO_WINDOW)
-                os._exit(0)
-
-        except Exception as e:
-            def show_error():
-                messagebox.showerror("Update Error", f"Failed to update:\n{e}")
-                update_win.destroy()
-            root.after(0, show_error)
-
-    threading.Thread(target=update_thread, daemon=True).start()
+    import webbrowser
+    webbrowser.open("https://github.com/Adhamkhalidsayed/X-Nova-Quotation-App/releases/latest")
+    messagebox.showinfo("Update Instructions", "Your browser has been opened to the release page.\n\nPlease download the latest zip file and replace your current app.", parent=root)
 
 def parse_version(v):
     return tuple(map(int, (v.split("."))))
