@@ -1,0 +1,144 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g. 1.0.1)'
+        required: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      commit_hash: ${{ steps.commit.outputs.commit_hash }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update version files
+        run: |
+          # Update version.json using sed (simpler than jq for basic replace without formatting loss)
+          sed -i 's/"version": "[0-9]*\.[0-9]*\.[0-9]*"/"version": "${{ github.event.inputs.version }}"/g' version.json
+          
+          # Update app.py
+          sed -i 's/APP_VERSION = "[0-9]*\.[0-9]*\.[0-9]*"/APP_VERSION = "${{ github.event.inputs.version }}"/g' app.py
+          
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add version.json app.py
+          git commit -m "Bump version to ${{ github.event.inputs.version }}" || echo "No changes to commit"
+          git push
+      
+      - name: Get Commit Hash
+        id: commit
+        run: echo "commit_hash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+  build-mac:
+    needs: prepare
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.commit_hash }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client pyinstaller
+        
+      - name: Create Secrets
+        run: echo '${{ secrets.GCP_CLIENT_SECRET }}' > client_secret.json
+        
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --name "X Nova Quotation" \
+                      --windowed \
+                      --icon "assets/favicon.icns" \
+                      --add-data "assets:assets" \
+                      --add-data "fonts:fonts" \
+                      --add-data "client_secret.json:." \
+                      --add-data "sheets_sync.py:." \
+                      --noconfirm app.py
+                      
+      - name: Zip Mac App
+        run: |
+          cd dist
+          zip -r X-Nova-Quotation-Mac.zip "X Nova Quotation.app"
+          
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-app
+          path: dist/X-Nova-Quotation-Mac.zip
+
+  build-win:
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.commit_hash }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client pyinstaller
+        
+      - name: Create Secrets
+        run: echo '${{ secrets.GCP_CLIENT_SECRET }}' > client_secret.json
+        
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --name "X Nova Quotation" ^
+                      --windowed ^
+                      --onefile ^
+                      --icon "assets\favicon.ico" ^
+                      --add-data "assets;assets" ^
+                      --add-data "fonts;fonts" ^
+                      --add-data "client_secret.json;." ^
+                      --add-data "sheets_sync.py;." ^
+                      --noconfirm app.py
+                      
+      - name: Zip Windows App
+        run: |
+          cd dist
+          Compress-Archive -Path "X Nova Quotation.exe" -DestinationPath X-Nova-Quotation-Win.zip
+          
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-app
+          path: dist/X-Nova-Quotation-Win.zip
+
+  release:
+    needs: [build-mac, build-win]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v${{ github.event.inputs.version }} \
+            artifacts/mac-app/X-Nova-Quotation-Mac.zip \
+            artifacts/win-app/X-Nova-Quotation-Win.zip \
+            --title "Release v${{ github.event.inputs.version }}" \
+            --notes "Automated release via GitHub Actions." \
+            --latest

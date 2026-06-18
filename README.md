@@ -17,6 +17,16 @@
 
 ---
 
+## ⬇️ Download the App
+
+You can always download the latest compiled version of the app directly here:
+- **🍎 macOS Download:** [X-Nova-Quotation-Mac.zip](https://github.com/Adhamkhalidsayed/X-Nova-Quotation-App/releases/latest/download/X-Nova-Quotation-Mac.zip)
+- **🪟 Windows Download:** [X-Nova-Quotation-Win.zip](https://github.com/Adhamkhalidsayed/X-Nova-Quotation-App/releases/latest/download/X-Nova-Quotation-Win.zip)
+
+*(The app features a built-in auto-updater, so you only need to download this once!)*
+
+---
+
 ## ✨ Features
 
 | Feature | Description |

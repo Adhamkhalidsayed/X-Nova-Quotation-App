@@ -1,6 +1,4 @@
 {
   "version": "1.0.0",
-  "url_mac": "https://github.com/Adhamkhalidsayed/X-Nova-Quotation-App/releases/download/v1.0.1/X-Nova-Quotation-Mac.zip",
-  "url_win": "https://github.com/Adhamkhalidsayed/X-Nova-Quotation-App/releases/download/v1.0.1/X-Nova-Quotation-Win.zip",
   "notes": "Initial release with auto-update capability."
 }

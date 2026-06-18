@@ -150,7 +150,11 @@ def check_for_updates():
             online_version = data.get("version", "0.0.0")
             if parse_version(online_version) > parse_version(APP_VERSION):
                 is_mac = sys.platform == 'darwin'
-                download_url = data.get("url_mac") if is_mac else data.get("url_win")
+                download_url = (
+                    "https://github.com/Adhamkhalidsayed/X-Nova-Quotation-App/releases/latest/download/X-Nova-Quotation-Mac.zip" 
+                    if is_mac else 
+                    "https://github.com/Adhamkhalidsayed/X-Nova-Quotation-App/releases/latest/download/X-Nova-Quotation-Win.zip"
+                )
                 notes = data.get("notes", "")
 
                 if download_url:
