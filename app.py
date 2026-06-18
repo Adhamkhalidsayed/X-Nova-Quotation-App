@@ -1261,7 +1261,9 @@ def _draw_tabs(event=None):
     cw = tab_canvas.winfo_width()
     if cw < 10:
         cw = 800
-    sx = (cw - _TOTAL) / 2
+    
+    current_total = len(_TAB_NAMES) * _TW + (len(_TAB_NAMES) - 1) * _TG
+    sx = (cw - current_total) / 2
     y1 = (_CH - _TH) / 2
     y2 = y1 + _TH
     for i, name in enumerate(_TAB_NAMES):
