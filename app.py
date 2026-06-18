@@ -1117,7 +1117,7 @@ else:
 class ModernButton(tk.Canvas):
     def __init__(self, parent, text, command=None, width=160, height=36, radius=18, 
                  bg_color="#6A0dad", hover_color="#800080", fg_color="white", 
-                 font=('Helvetica', 11, 'bold'), **kwargs):
+                 font=('Helvetica', 14, 'bold'), **kwargs):
         # Determine parent background color for seamless blending
         parent_bg = _APP_BG
             
@@ -1168,7 +1168,15 @@ def _rr(cv, x1, y1, x2, y2, r, **kw):
     pts = [x1+r,y1, x2-r,y1, x2,y1, x2,y1+r, x2,y2-r, x2,y2, x2-r,y2, x1+r,y2, x1,y2, x1,y2-r, x1,y1+r, x1,y1]
     return cv.create_polygon(pts, smooth=True, **kw)
 
-def _draw_tabs():
+_last_tab_width = 0
+
+def _draw_tabs(event=None):
+    global _last_tab_width
+    if event:
+        if event.width == _last_tab_width:
+            return
+        _last_tab_width = event.width
+        
     tab_canvas.delete('all')
     _tab_rects.clear()
     _tab_texts.clear()
@@ -1185,7 +1193,7 @@ def _draw_tabs():
         rect = _rr(tab_canvas, x1, y1, x2, y2, _TR, fill=_CLR_ACT if act else _CLR_INA, outline='')
         txt = tab_canvas.create_text((x1+x2)/2, (y1+y2)/2, text=name,
                 fill=_CLR_ACT_F if act else _CLR_INA_F,
-                font=('Helvetica', 12, 'bold') if act else ('Helvetica', 12))
+                font=('Helvetica', 14, 'bold') if act else ('Helvetica', 14))
         _tab_rects.append(rect)
         _tab_texts.append(txt)
         for item in (rect, txt):
@@ -1223,7 +1231,7 @@ def _tab_changed(*_):
         
     _draw_tabs()
 
-tab_canvas.bind('<Configure>', lambda e: _draw_tabs())
+tab_canvas.bind('<Configure>', _draw_tabs)
 
 notebook = ttk.Notebook(main_frame)
 notebook.pack(fill='both', expand=True)
@@ -1306,15 +1314,17 @@ db_canvas = tk.Canvas(tab_database, borderwidth=0, highlightthickness=0)
 db_scrollbar = ttk.Scrollbar(tab_database, orient="vertical", command=db_canvas.yview)
 scrollable_db_frame = ttk.Frame(db_canvas)
 
-scrollable_db_frame.bind(
-    "<Configure>",
-    lambda e: db_canvas.configure(
-        scrollregion=db_canvas.bbox("all")
-    )
-)
+def _on_scrollable_db_configure(event):
+    db_canvas.configure(scrollregion=db_canvas.bbox("all"))
 
-# Function to resize frame inside canvas width
+scrollable_db_frame.bind("<Configure>", _on_scrollable_db_configure)
+
+_last_db_canvas_width = 0
 def _on_canvas_configure(event):
+    global _last_db_canvas_width
+    if event.width == _last_db_canvas_width:
+        return
+    _last_db_canvas_width = event.width
     db_canvas.itemconfig(canvas_window, width=event.width)
 
 db_canvas.bind('<Configure>', _on_canvas_configure)
