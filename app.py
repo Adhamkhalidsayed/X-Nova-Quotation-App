@@ -27,7 +27,7 @@ import tempfile
 import shutil
 import subprocess
 
-APP_VERSION = "1.0.4"
+APP_VERSION = "1.0.5"
 VERSION_URL = "https://raw.githubusercontent.com/Adhamkhalidsayed/X-Nova-Quotation-App/master/version.json"
 
 def get_resource_path(relative_path):
