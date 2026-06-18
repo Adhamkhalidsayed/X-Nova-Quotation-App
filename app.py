@@ -143,7 +143,9 @@ def parse_version(v):
 def check_for_updates():
     def fetch_version():
         try:
-            req = urllib.request.Request(VERSION_URL, headers={'User-Agent': 'Mozilla/5.0'})
+            import time
+            url = f"{VERSION_URL}?t={int(time.time())}"
+            req = urllib.request.Request(url, headers={'Cache-Control': 'no-cache'})
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode())
                 
