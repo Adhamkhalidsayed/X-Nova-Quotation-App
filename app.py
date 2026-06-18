@@ -1240,9 +1240,34 @@ def _tab_changed(*_):
 
 tab_canvas.bind('<Configure>', _draw_tabs)
 
-notebook = ttk.Notebook(main_frame)
+class TabManager(tk.Frame):
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+        self.tabs = []
+        self._current_index = 0
+        
+    def add(self, frame, text=""):
+        self.tabs.append(frame)
+        if len(self.tabs) == 1:
+            frame.pack(fill="both", expand=True)
+            
+    def select(self, idx=None):
+        if idx is None:
+            return self.tabs[self._current_index] if self.tabs else None
+        if isinstance(idx, int) and 0 <= idx < len(self.tabs):
+            if self.tabs[self._current_index].winfo_ismapped():
+                self.tabs[self._current_index].pack_forget()
+            self._current_index = idx
+            self.tabs[self._current_index].pack(fill="both", expand=True)
+            _tab_changed()
+            
+    def index(self, tab_id):
+        if isinstance(tab_id, int): return tab_id
+        if tab_id in self.tabs: return self.tabs.index(tab_id)
+        return self._current_index
+
+notebook = TabManager(main_frame, bg=_APP_BG)
 notebook.pack(fill='both', expand=True)
-notebook.bind('<<NotebookTabChanged>>', _tab_changed)
 
 # ================= TAB 1: GENERATE QUOTE =================
 tab_generator = ttk.Frame(notebook)
