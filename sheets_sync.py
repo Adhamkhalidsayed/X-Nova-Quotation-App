@@ -226,6 +226,65 @@ def save_products_to_sheet(products_db):
         return False
 
 
+# ===================== USERS =====================
+
+def load_users_from_sheet():
+    """
+    Load users from the 'Users' worksheet.
+    Returns a list of dicts: [{'username': '...', 'password_hash': '...', 'role': '...'}]
+    """
+    if not _sync_available:
+        return None
+
+    try:
+        ws = _sheet.worksheet("Users")
+        rows = ws.get_all_records()
+        
+        users = []
+        for row in rows:
+            username = row.get("Username", "").strip()
+            if not username:
+                continue
+            users.append({
+                "username": username,
+                "password_hash": row.get("Password Hash", ""),
+                "role": row.get("Role", "user")
+            })
+        return users
+    except Exception as e:
+        print(f"[Sync] Error loading users: {e}")
+        return None
+
+def save_users_to_sheet(users_list):
+    """
+    Write the users list to the 'Users' worksheet.
+    """
+    if not _sync_available:
+        return False
+
+    try:
+        ws = _sheet.worksheet("Users")
+        ws.clear()
+
+        header = ["Username", "Password Hash", "Role"]
+        rows = [header]
+
+        for u in users_list:
+            rows.append([
+                u.get("username", ""),
+                u.get("password_hash", ""),
+                u.get("role", "user")
+            ])
+
+        if len(rows) > 1:
+            ws.update(range_name=f"A1:C{len(rows)}", values=rows)
+
+        print(f"[Sync] Users synced ({len(rows)-1} users)")
+        return True
+    except Exception as e:
+        print(f"[Sync] Error saving users: {e}")
+        return False
+
 # ===================== HISTORY =====================
 
 def load_history_from_sheet():
@@ -376,29 +435,33 @@ def sync_images_down():
         print(f"[Sync] Finished downloading {downloaded_count} images.")
 
 
-def sync_all(products_db, history_list):
+def sync_all(products_db, history_list, users_list=None):
     """
     Full sync: push local data to Google Sheets and Drive.
-    Returns (products_ok, history_ok) tuple.
+    Returns (products_ok, history_ok, users_ok) tuple.
     """
     if not _sync_available:
-        return False, False
+        return False, False, False
 
     p = save_products_to_sheet(products_db)
     h = save_history_to_sheet(history_list)
+    u = False
+    if users_list is not None:
+        u = save_users_to_sheet(users_list)
     sync_images_up()
-    return p, h
+    return p, h, u
 
 
 def pull_all():
     """
     Pull all data from Google Sheets and Drive.
-    Returns (products_dict, history_list) or (None, None) on failure.
+    Returns (products_dict, history_list, users_list) or (None, None, None) on failure.
     """
     if not _sync_available:
-        return None, None
+        return None, None, None
 
     products = load_products_from_sheet()
     history = load_history_from_sheet()
+    users = load_users_from_sheet()
     sync_images_down()
-    return products, history
+    return products, history, users

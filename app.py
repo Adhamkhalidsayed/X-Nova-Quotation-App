@@ -15,7 +15,7 @@ import re
 import uuid
 from datetime import datetime
 import sheets_sync
-
+import auth
 import os
 import sys
 import platform
@@ -991,7 +991,52 @@ root.configure(bg=_APP_BG, pady=10)
 root.minsize(800, 700)
 
 main_frame = tk.Frame(root, bg=_APP_BG)
-main_frame.pack(fill="both", expand=True)
+
+current_user = None
+local_users = auth.load_local_users()
+
+def show_main_app():
+    login_frame.pack_forget()
+    main_frame.pack(fill="both", expand=True)
+    if current_user and current_user.get("role") == "admin":
+        setup_admin_tab()
+    # Check for updates when the app starts
+    check_for_updates()
+
+login_frame = tk.Frame(root, bg=_APP_BG)
+login_frame.pack(fill="both", expand=True)
+
+tk.Label(login_frame, text="X Nova Quotation", font=("Helvetica", 28, "bold"), bg=_APP_BG, fg=_FG).pack(pady=(150, 10))
+tk.Label(login_frame, text="Please Login", font=("Helvetica", 16), bg=_APP_BG, fg=_FG).pack(pady=(0, 30))
+
+login_inner = tk.Frame(login_frame, bg=_APP_BG)
+login_inner.pack()
+
+tk.Label(login_inner, text="Username:", font=("Helvetica", 14), bg=_APP_BG, fg=_FG).grid(row=0, column=0, pady=10, sticky="e")
+entry_login_user = ttk.Entry(login_inner, font=("Helvetica", 14), width=20)
+entry_login_user.grid(row=0, column=1, pady=10, padx=10)
+
+tk.Label(login_inner, text="Password:", font=("Helvetica", 14), bg=_APP_BG, fg=_FG).grid(row=1, column=0, pady=10, sticky="e")
+entry_login_pass = ttk.Entry(login_inner, font=("Helvetica", 14), width=20, show="*")
+entry_login_pass.grid(row=1, column=1, pady=10, padx=10)
+
+def attempt_login(event=None):
+    global current_user
+    username = entry_login_user.get().strip()
+    password = entry_login_pass.get()
+    
+    for u in local_users:
+        if u["username"] == username and auth.verify_password(password, u["password_hash"]):
+            current_user = u
+            show_main_app()
+            return
+            
+    messagebox.showerror("Login Failed", "Invalid username or password.")
+
+entry_login_pass.bind("<Return>", attempt_login)
+
+btn_login = tk.Button(login_inner, text="Login", font=("Helvetica", 14, "bold"), bg="#6A0dad", fg="white", command=attempt_login, width=15)
+btn_login.grid(row=2, column=0, columnspan=2, pady=30)
 
 try:
     icon = tk.PhotoImage(file=get_resource_path("assets/favicon.png"))
@@ -1668,13 +1713,20 @@ def manual_sync():
     sheets_sync.sync_images_up()
     
     # Then pull remote data down
-    products, history = sheets_sync.pull_all()
+    products, history, users = sheets_sync.pull_all()
     if products is not None and history is not None:
         products_db = products
         with open(get_data_path("database.json"), "w") as f:
             json.dump(products, f, indent=4)
         with open(HISTORY_FILE, "w") as f:
             json.dump(history, f, indent=4)
+            
+        if users is not None:
+            global local_users
+            local_users = users
+            auth.save_local_users(users)
+            if current_user and current_user.get("role") == "admin":
+                refresh_admin_tree()
             
         refresh_dropdowns()
         refresh_history_tree()
@@ -1718,7 +1770,92 @@ ModernButton(about_container, text="Check for Updates", width=220, height=45, ra
 # the scroll event — the canvas scrolls instead.
 _apply_db_scroll_override(scrollable_db_frame)
 
-# Check for updates when the app starts
-check_for_updates()
+def setup_admin_tab():
+    global admin_tree
+    tab_admin = ttk.Frame(notebook)
+    notebook.add(tab_admin, text="Admin")
+    
+    # Need to redraw tabs to show the new one
+    _TAB_NAMES.append("Admin")
+    _draw_tabs()
+    
+    lbl = tk.Label(tab_admin, text="User Management", font=("Helvetica", 20, "bold"))
+    lbl.pack(pady=20)
+    
+    tree_frame = ttk.Frame(tab_admin)
+    tree_frame.pack(fill="both", expand=True, padx=20, pady=10)
+    
+    admin_tree = ttk.Treeview(tree_frame, columns=("Username", "Role"), show="headings", height=10)
+    admin_tree.heading("Username", text="Username")
+    admin_tree.heading("Role", text="Role")
+    admin_tree.pack(fill="both", expand=True)
+    
+    btn_frame = ttk.Frame(tab_admin)
+    btn_frame.pack(fill="x", padx=20, pady=20)
+    
+    tk.Label(btn_frame, text="Username:").grid(row=0, column=0, padx=5, pady=5)
+    new_user_entry = ttk.Entry(btn_frame)
+    new_user_entry.grid(row=0, column=1, padx=5, pady=5)
+    
+    tk.Label(btn_frame, text="Password:").grid(row=0, column=2, padx=5, pady=5)
+    new_pass_entry = ttk.Entry(btn_frame, show="*")
+    new_pass_entry.grid(row=0, column=3, padx=5, pady=5)
+    
+    tk.Label(btn_frame, text="Role:").grid(row=0, column=4, padx=5, pady=5)
+    role_combo = ttk.Combobox(btn_frame, values=["user", "admin"], state="readonly", width=10)
+    role_combo.current(0)
+    role_combo.grid(row=0, column=5, padx=5, pady=5)
+    
+    def add_user():
+        username = new_user_entry.get().strip()
+        password = new_pass_entry.get()
+        role = role_combo.get()
+        if not username or not password:
+            messagebox.showerror("Error", "Username and Password required.")
+            return
+        if any(u["username"] == username for u in local_users):
+            messagebox.showerror("Error", "User already exists.")
+            return
+        
+        local_users.append({
+            "username": username,
+            "password_hash": auth.hash_password(password),
+            "role": role
+        })
+        auth.save_local_users(local_users)
+        sheets_sync.save_users_to_sheet(local_users)
+        refresh_admin_tree()
+        new_user_entry.delete(0, tk.END)
+        new_pass_entry.delete(0, tk.END)
+        messagebox.showinfo("Success", f"User {username} created.")
+        
+    def delete_user():
+        selected = admin_tree.selection()
+        if not selected: return
+        item = admin_tree.item(selected[0])
+        username = item['values'][0]
+        if username == current_user["username"]:
+            messagebox.showerror("Error", "Cannot delete yourself.")
+            return
+            
+        if messagebox.askyesno("Confirm", f"Delete user {username}?"):
+            global local_users
+            local_users = [u for u in local_users if u["username"] != username]
+            auth.save_local_users(local_users)
+            sheets_sync.save_users_to_sheet(local_users)
+            refresh_admin_tree()
+            
+    ModernButton(btn_frame, text="Add User", width=120, height=36, radius=18, bg_color="#4CAF50", command=add_user).grid(row=0, column=6, padx=10)
+    ModernButton(btn_frame, text="Delete Selected", width=140, height=36, radius=18, bg_color="#f44336", command=delete_user).grid(row=0, column=7, padx=10)
+    
+    refresh_admin_tree()
+
+def refresh_admin_tree():
+    if 'admin_tree' not in globals(): return
+    for item in admin_tree.get_children():
+        admin_tree.delete(item)
+    for u in local_users:
+        admin_tree.insert("", "end", values=(u["username"], u["role"]))
+
 
 root.mainloop()
