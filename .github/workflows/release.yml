@@ -95,9 +95,11 @@ jobs:
         run: pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client pyinstaller
         
       - name: Create Secrets
+        shell: bash
         run: echo '${{ secrets.GCP_CLIENT_SECRET }}' > client_secret.json
         
       - name: Build with PyInstaller
+        shell: cmd
         run: |
           pyinstaller --name "X Nova Quotation" ^
                       --windowed ^
