@@ -153,8 +153,14 @@ def check_for_updates(manual=False):
         try:
             import time
             url = f"{VERSION_URL}?t={int(time.time())}"
-            req = urllib.request.Request(url, headers={'Cache-Control': 'no-cache'})
-            with urllib.request.urlopen(req, timeout=5) as response:
+            req = urllib.request.Request(url, headers={'Cache-Control': 'no-cache', 'User-Agent': 'Mozilla/5.0'})
+            # Create an SSL context that skips certificate verification.
+            # This is required on macOS packaged apps (PyInstaller) which lack
+            # the system certificate store.
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            with urllib.request.urlopen(req, timeout=8, context=ctx) as response:
                 data = json.loads(response.read().decode())
                 
             online_version = data.get("version", "0.0.0")
@@ -177,10 +183,14 @@ def check_for_updates(manual=False):
                 if manual:
                     root.after(0, lambda: messagebox.showinfo("Up to Date", f"You are already running the latest version ({APP_VERSION}).", parent=root))
         except Exception as e:
+            # Capture the error as a plain string BEFORE the except block exits,
+            # because Python deletes the variable 'e' after the except block ends.
+            # Without this, the lambda below would read 'e' as None.
+            err_msg = str(e)
             if manual:
-                root.after(0, lambda: messagebox.showerror("Update Error", f"Failed to check for updates.\n{e}", parent=root))
+                root.after(0, lambda msg=err_msg: messagebox.showerror("Update Error", f"Failed to check for updates.\n{msg}", parent=root))
             else:
-                print(f"Failed to check for updates: {e}")
+                print(f"Failed to check for updates: {err_msg}")
 
     threading.Thread(target=fetch_version, daemon=True).start()
 
