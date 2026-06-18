@@ -1280,6 +1280,7 @@ class TabManager(tk.Frame):
             self._current_index = idx
             self.tabs[self._current_index].pack(fill="both", expand=True)
             _tab_changed()
+            self.update_idletasks()
             
     def index(self, tab_id):
         if isinstance(tab_id, int): return tab_id
