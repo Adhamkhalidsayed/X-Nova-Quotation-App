@@ -26,6 +26,14 @@ import zipfile
 import tempfile
 import shutil
 import subprocess
+import ssl
+
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
 
 APP_VERSION = "1.0.5"
 VERSION_URL = "https://raw.githubusercontent.com/Adhamkhalidsayed/X-Nova-Quotation-App/master/version.json"
