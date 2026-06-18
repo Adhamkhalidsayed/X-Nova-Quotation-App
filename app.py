@@ -140,7 +140,7 @@ def perform_update(download_url):
 def parse_version(v):
     return tuple(map(int, (v.split("."))))
 
-def check_for_updates():
+def check_for_updates(manual=False):
     def fetch_version():
         try:
             import time
@@ -165,9 +165,14 @@ def check_for_updates():
                         if messagebox.askyesno("Update Available", msg, parent=root):
                             perform_update(download_url)
                     root.after(500, prompt_user) # Wait a bit for UI to settle
+            else:
+                if manual:
+                    root.after(0, lambda: messagebox.showinfo("Up to Date", f"You are already running the latest version ({APP_VERSION})."))
         except Exception as e:
-            print(f"Failed to check for updates: {e}")
-            pass
+            if manual:
+                root.after(0, lambda: messagebox.showerror("Update Error", f"Failed to check for updates.\n{e}"))
+            else:
+                print(f"Failed to check for updates: {e}")
 
     threading.Thread(target=fetch_version, daemon=True).start()
 
@@ -1154,7 +1159,7 @@ class ModernButton(tk.Canvas):
         self.itemconfig(self.rect, fill=self.bg_color)
 
 # --- Canvas-based custom tab bar with rounded corners ---
-_TAB_NAMES = ['Generate Quote', 'Database', 'History']
+_TAB_NAMES = ['Generate Quote', 'Database', 'History', 'About']
 _TW, _TH, _TR, _TG = 150, 34, 12, 6  # width, height, radius, gap
 _CH = _TH + 14
 _TOTAL = len(_TAB_NAMES) * _TW + (len(_TAB_NAMES) - 1) * _TG
@@ -1722,6 +1727,28 @@ try:
     refresh_history_tree()
 except:
     pass
+
+
+# --- ABOUT TAB ---
+tab_about = ttk.Frame(notebook)
+notebook.add(tab_about, text="About")
+
+about_container = tk.Frame(tab_about, bg=_APP_BG)
+about_container.place(relx=0.5, rely=0.5, anchor="center")
+
+try:
+    lbl_about_logo = ttk.Label(about_container, image=logo_photo)
+    lbl_about_logo.pack(pady=20)
+except:
+    pass
+
+ttk.Label(about_container, text="X Nova Quotation App", font=("Helvetica", 24, "bold")).pack(pady=10)
+ttk.Label(about_container, text=f"Version {APP_VERSION}", font=("Helvetica", 14)).pack(pady=5)
+ttk.Label(about_container, text="Built for X Nova Smart Spaces", font=("Helvetica", 12, "italic"), foreground="#888888").pack(pady=(0, 30))
+
+ModernButton(about_container, text="Check for Updates", width=220, height=45, radius=22, 
+             bg_color="#2196F3", hover_color="#0b7dda", font=("Helvetica", 14, "bold"), 
+             command=lambda: check_for_updates(manual=True)).pack(pady=10)
 
 
 # Apply instance-level scroll override to all scroll-consuming widgets inside
