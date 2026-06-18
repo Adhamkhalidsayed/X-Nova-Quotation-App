@@ -167,10 +167,10 @@ def check_for_updates(manual=False):
                     root.after(500, prompt_user) # Wait a bit for UI to settle
             else:
                 if manual:
-                    root.after(0, lambda: messagebox.showinfo("Up to Date", f"You are already running the latest version ({APP_VERSION})."))
+                    root.after(0, lambda: messagebox.showinfo("Up to Date", f"You are already running the latest version ({APP_VERSION}).", parent=root))
         except Exception as e:
             if manual:
-                root.after(0, lambda: messagebox.showerror("Update Error", f"Failed to check for updates.\n{e}"))
+                root.after(0, lambda: messagebox.showerror("Update Error", f"Failed to check for updates.\n{e}", parent=root))
             else:
                 print(f"Failed to check for updates: {e}")
 
