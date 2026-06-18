@@ -1,4 +1,4 @@
 {
-  "version": "1.2.1",
-  "notes": "Login system, admin panel, UI improvements."
+  "version": "1.2.2",
+  "notes": "Fix auto-updater permissions on macOS."
 }

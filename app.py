@@ -35,7 +35,7 @@ except AttributeError:
 else:
     ssl._create_default_https_context = _create_unverified_https_context
 
-APP_VERSION = "1.2.1"
+APP_VERSION = "1.2.2"
 VERSION_URL = "https://raw.githubusercontent.com/Adhamkhalidsayed/X-Nova-Quotation-App/master/version.json"
 
 def get_resource_path(relative_path):
@@ -107,8 +107,10 @@ def perform_update(download_url):
                     f.write('rm -rf "/Applications/X Nova Quotation.app"\n')
                     f.write('echo "Copying new app..."\n')
                     f.write(f'cp -R "{app_path}" "/Applications/X Nova Quotation.app"\n')
+                    f.write('echo "Fixing permissions..."\n')
+                    f.write('chmod -R 755 "/Applications/X Nova Quotation.app"\n')
                     f.write('echo "Removing quarantine..."\n')
-                    f.write('xattr -rd com.apple.quarantine "/Applications/X Nova Quotation.app"\n')
+                    f.write('xattr -cr "/Applications/X Nova Quotation.app"\n')
                     f.write('echo "Opening new app..."\n')
                     f.write('open "/Applications/X Nova Quotation.app"\n')
                     f.write('echo "Done!"\n')
