@@ -20,6 +20,15 @@ import os
 import sys
 import platform
 from pathlib import Path
+import urllib.request
+import threading
+import zipfile
+import tempfile
+import shutil
+import subprocess
+
+APP_VERSION = "1.0.0"
+VERSION_URL = "https://raw.githubusercontent.com/Adhamkhalidsayed/X-Nova-Quotation-App/master/version.json"
 
 def get_resource_path(relative_path):
     try:
@@ -39,6 +48,122 @@ def get_data_path(filename):
     os.makedirs(path, exist_ok=True)
     return os.path.join(path, filename)
 
+def perform_update(download_url):
+    update_win = tk.Toplevel(root)
+    update_win.title("Updating...")
+    update_win.geometry("300x100")
+    update_win.resizable(False, False)
+    # Center the window
+    update_win.update_idletasks()
+    x = root.winfo_x() + (root.winfo_width() // 2) - 150
+    y = root.winfo_y() + (root.winfo_height() // 2) - 50
+    update_win.geometry(f"+{x}+{y}")
+    update_win.grab_set()
+
+    lbl = tk.Label(update_win, text="Downloading update...\nPlease wait, the app will restart.", font=("Montserrat", 10))
+    lbl.pack(expand=True, fill="both", padx=10, pady=10)
+
+    def update_thread():
+        try:
+            temp_dir = tempfile.mkdtemp()
+            zip_path = os.path.join(temp_dir, "update.zip")
+            
+            req = urllib.request.Request(download_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req) as response, open(zip_path, 'wb') as out_file:
+                shutil.copyfileobj(response, out_file)
+            
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
+            
+            is_mac = sys.platform == 'darwin'
+            if is_mac:
+                app_path = os.path.join(temp_dir, "X Nova Quotation.app")
+                if not os.path.exists(app_path):
+                    for folder in os.listdir(temp_dir):
+                        if os.path.isdir(os.path.join(temp_dir, folder)):
+                            potential_app = os.path.join(temp_dir, folder, "X Nova Quotation.app")
+                            if os.path.exists(potential_app):
+                                app_path = potential_app
+                                break
+
+                if not os.path.exists(app_path):
+                    raise Exception("Could not find X Nova Quotation.app in downloaded update.")
+
+                script_path = os.path.join(temp_dir, "update.sh")
+                with open(script_path, "w") as f:
+                    f.write("#!/bin/bash\n")
+                    f.write("sleep 2\n")
+                    f.write('rm -rf "/Applications/X Nova Quotation.app"\n')
+                    f.write(f'cp -R "{app_path}" "/Applications/X Nova Quotation.app"\n')
+                    f.write('xattr -rd com.apple.quarantine "/Applications/X Nova Quotation.app"\n')
+                    f.write('open "/Applications/X Nova Quotation.app"\n')
+                    f.write('rm "$0"\n')
+                
+                os.chmod(script_path, 0o755)
+                subprocess.Popen([script_path], start_new_session=True)
+                os._exit(0)
+
+            else:
+                exe_path = os.path.join(temp_dir, "X Nova Quotation.exe")
+                if not os.path.exists(exe_path):
+                    for folder in os.listdir(temp_dir):
+                        if os.path.isdir(os.path.join(temp_dir, folder)):
+                            potential_exe = os.path.join(temp_dir, folder, "X Nova Quotation.exe")
+                            if os.path.exists(potential_exe):
+                                exe_path = potential_exe
+                                break
+                
+                if not os.path.exists(exe_path):
+                    raise Exception("Could not find X Nova Quotation.exe in downloaded update.")
+
+                current_exe = sys.executable
+                script_path = os.path.join(temp_dir, "update.bat")
+                with open(script_path, "w") as f:
+                    f.write("@echo off\n")
+                    f.write("timeout /t 2 /nobreak >nul\n")
+                    f.write(f'move /y "{exe_path}" "{current_exe}"\n')
+                    f.write(f'start "" "{current_exe}"\n')
+                    f.write('del "%~f0"\n')
+
+                CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
+                subprocess.Popen([script_path], creationflags=CREATE_NO_WINDOW)
+                os._exit(0)
+
+        except Exception as e:
+            def show_error():
+                messagebox.showerror("Update Error", f"Failed to update:\n{e}")
+                update_win.destroy()
+            root.after(0, show_error)
+
+    threading.Thread(target=update_thread, daemon=True).start()
+
+def parse_version(v):
+    return tuple(map(int, (v.split("."))))
+
+def check_for_updates():
+    def fetch_version():
+        try:
+            req = urllib.request.Request(VERSION_URL, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                
+            online_version = data.get("version", "0.0.0")
+            if parse_version(online_version) > parse_version(APP_VERSION):
+                is_mac = sys.platform == 'darwin'
+                download_url = data.get("url_mac") if is_mac else data.get("url_win")
+                notes = data.get("notes", "")
+
+                if download_url:
+                    def prompt_user():
+                        msg = f"A new version ({online_version}) is available!\n\nRelease Notes:\n{notes}\n\nWould you like to update now?"
+                        if messagebox.askyesno("Update Available", msg, parent=root):
+                            perform_update(download_url)
+                    root.after(500, prompt_user) # Wait a bit for UI to settle
+        except Exception as e:
+            print(f"Failed to check for updates: {e}")
+            pass
+
+    threading.Thread(target=fetch_version, daemon=True).start()
 
 
 # --- REGISTER MONTSERRAT FONT ---
@@ -1078,13 +1203,17 @@ def _tab_changed(*_):
         
     try:
         if _current_tab == 1:  # Database Tab is active
-            root.bind_all("<MouseWheel>", _on_mousewheel)
-            root.bind_all("<Button-4>", _on_mousewheel)
-            root.bind_all("<Button-5>", _on_mousewheel)
+            if platform.system() == 'Linux':
+                root.bind_all("<Button-4>", _db_scroll_global)
+                root.bind_all("<Button-5>", _db_scroll_global)
+            else:
+                root.bind_all("<MouseWheel>", _db_scroll_global)
         else:
-            root.unbind_all("<MouseWheel>")
-            root.unbind_all("<Button-4>")
-            root.unbind_all("<Button-5>")
+            if platform.system() == 'Linux':
+                root.unbind_all("<Button-4>")
+                root.unbind_all("<Button-5>")
+            else:
+                root.unbind_all("<MouseWheel>")
     except Exception:
         pass
         
@@ -1191,15 +1320,23 @@ db_canvas.configure(yscrollcommand=db_scrollbar.set)
 db_canvas.pack(side="left", fill="both", expand=True)
 db_scrollbar.pack(side="right", fill="y")
 
-# Make mousewheel work (for Mac/Windows)
-def _on_mousewheel(event):
+# ── Scroll fix ───────────────────────────────────────────────────────────────
+# macOS sends <MouseWheel> to the FOCUSED widget, not the hovered one.
+# Strategy:
+#   1. root.bind_all catches everything globally.
+#   2. For widgets inside the db frame that consume scroll themselves
+#      (Entry, Combobox, Listbox, Text, Spinbox), we bind at the INSTANCE level
+#      (which fires before the class handler) and return 'break' so the widget
+#      never scrolls itself — the canvas scrolls instead.
+#   That binding is applied in _apply_db_scroll_override() called before mainloop.
+
+def _do_canvas_scroll(event):
+    """Scroll db_canvas based on event.delta / button number."""
     try:
         if platform.system() == 'Windows':
             db_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
         elif platform.system() == 'Darwin':
-            if event.delta != 0:
-                direction = -1 if event.delta > 0 else 1
-                db_canvas.yview_scroll(direction, "units")
+            db_canvas.yview_scroll(int(-1 * event.delta), "units")
         else:
             if event.num == 4:
                 db_canvas.yview_scroll(-1, "units")
@@ -1207,6 +1344,47 @@ def _on_mousewheel(event):
                 db_canvas.yview_scroll(1, "units")
     except Exception:
         pass
+
+def _db_scroll_global(event):
+    """Root-level handler: scroll canvas if mouse is hovering over it."""
+    try:
+        mx, my = event.x_root, event.y_root
+        cx = db_canvas.winfo_rootx()
+        cy = db_canvas.winfo_rooty()
+        cw = db_canvas.winfo_width()
+        ch = db_canvas.winfo_height()
+        if cx <= mx <= cx + cw and cy <= my <= cy + ch:
+            _do_canvas_scroll(event)
+    except Exception:
+        pass
+
+# Global catch-all (fires last, after widget class handlers)
+if platform.system() == 'Linux':
+    root.bind_all('<Button-4>', _db_scroll_global)
+    root.bind_all('<Button-5>', _db_scroll_global)
+else:
+    root.bind_all('<MouseWheel>', _db_scroll_global)
+
+# Widget types that consume scroll and need to be overridden inside the db frame
+_SCROLL_CONSUMING = (tk.Entry, tk.Listbox, tk.Text, tk.Spinbox,
+                     ttk.Combobox, ttk.Spinbox, ttk.Entry)
+
+def _widget_scroll_override(event):
+    """Instance-level handler for widgets inside the db frame.
+    Fires BEFORE the class handler; redirects scroll to canvas and stops propagation."""
+    _do_canvas_scroll(event)
+    return 'break'  # prevents the widget's own class-level scroll handler
+
+def _apply_db_scroll_override(widget):
+    """Walk the db frame tree and override scroll on any scroll-consuming widget."""
+    if isinstance(widget, _SCROLL_CONSUMING):
+        if platform.system() == 'Linux':
+            widget.bind('<Button-4>', _widget_scroll_override)
+            widget.bind('<Button-5>', _widget_scroll_override)
+        else:
+            widget.bind('<MouseWheel>', _widget_scroll_override)
+    for child in widget.winfo_children():
+        _apply_db_scroll_override(child)
 
 # ---- Search / Browse panel ----
 frame_search_db = ttk.LabelFrame(scrollable_db_frame, text="🔍  Browse & Search Products", padding=10)
@@ -1530,5 +1708,12 @@ except:
     pass
 
 
+# Apply instance-level scroll override to all scroll-consuming widgets inside
+# the database frame (Entry, Combobox, Listbox, etc.) so they don't swallow
+# the scroll event — the canvas scrolls instead.
+_apply_db_scroll_override(scrollable_db_frame)
+
+# Check for updates when the app starts
+check_for_updates()
 
 root.mainloop()

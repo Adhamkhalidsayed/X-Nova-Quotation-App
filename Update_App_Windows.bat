@@ -13,14 +13,15 @@ if not exist "venv_win" (
 )
 call venv_win\Scripts\activate.bat
 
-echo [2/4] Installing PyInstaller...
-pip install pyinstaller
+echo [2/4] Installing Dependencies and PyInstaller...
+pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client pyinstaller
 
 echo [3/4] Rebuilding App via PyInstaller...
 rmdir /s /q build
 rmdir /s /q dist
 pyinstaller --name "X Nova Quotation" ^
             --windowed ^
+            --onefile ^
             --icon "assets\favicon.ico" ^
             --add-data "assets;assets" ^
             --add-data "fonts;fonts" ^
@@ -31,7 +32,7 @@ pyinstaller --name "X Nova Quotation" ^
 echo [4/4] Update Complete!
 echo.
 echo Launching App...
-start "" "dist\X Nova Quotation\X Nova Quotation.exe"
+start "" "dist\X Nova Quotation.exe"
 
 timeout /t 3
 exit
