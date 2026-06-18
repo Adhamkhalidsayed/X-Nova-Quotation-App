@@ -134,14 +134,7 @@ jobs:
         with:
           path: artifacts
       
-      - name: Update Public Version Gist
-        env:
-          GH_TOKEN: ${{ secrets.GIST_TOKEN }}
-        run: |
-          VERSION="${{ github.event.inputs.version }}"
-          gh api --method PATCH /gists/06618188f016d5ccac6204572a0af846 \
-            -f "files[version.json][content]={\"version\": \"${VERSION}\", \"notes\": \"Bug fixes and improvements.\"}"
-      
+
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
