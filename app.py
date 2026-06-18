@@ -36,7 +36,7 @@ else:
     ssl._create_default_https_context = _create_unverified_https_context
 
 APP_VERSION = "1.0.8"
-VERSION_URL = "https://raw.githubusercontent.com/Adhamkhalidsayed/X-Nova-Quotation-App/master/version.json"
+VERSION_URL = "https://gist.githubusercontent.com/Adhamkhalidsayed/06618188f016d5ccac6204572a0af846/raw/version.json"
 
 def get_resource_path(relative_path):
     try:
