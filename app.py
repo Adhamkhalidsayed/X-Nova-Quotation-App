@@ -1071,16 +1071,46 @@ _FG = 'white' if is_dark_mode else 'black'
 # --- 4. THE DESKTOP WINDOW ---
 root = tk.Tk()
 root.title("X Nova Quotation Generator")
-win_width, win_height = 800, 800
+win_width, win_height = 950, 850
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
 x = (screen_width - win_width) // 2
 y = (screen_height - win_height) // 2
 root.geometry(f"{win_width}x{win_height}+{x}+{y}")
 root.configure(bg=_APP_BG, pady=10)
-root.minsize(800, 700)
+root.minsize(950, 750)
 
 main_frame = tk.Frame(root, bg=_APP_BG)
+
+class ModernButton(tk.Canvas):
+    def __init__(self, parent, text, command=None, width=160, height=36, radius=18, 
+                 bg_color="#6A0dad", hover_color="#800080", fg_color="white", 
+                 font=('Helvetica', 14, 'bold'), **kwargs):
+        parent_bg = _APP_BG
+        super().__init__(parent, width=width, height=height, bg=parent_bg, highlightthickness=0, **kwargs)
+        self.command = command
+        self.bg_color = bg_color
+        self.hover_color = hover_color
+        self.rect = self.create_polygon(self._get_pts(0, 0, width, height, radius), smooth=True, fill=bg_color, outline='')
+        self.text_item = self.create_text(width/2, height/2, text=text, fill=fg_color, font=font)
+        self.tag_bind(self.rect, '<Button-1>', self.on_click)
+        self.tag_bind(self.text_item, '<Button-1>', self.on_click)
+        self.tag_bind(self.rect, '<Enter>', self.on_enter)
+        self.tag_bind(self.text_item, '<Enter>', self.on_enter)
+        self.bind('<Leave>', self.on_leave)
+        
+    def _get_pts(self, x1, y1, x2, y2, r):
+        return [x1+r,y1, x2-r,y1, x2,y1, x2,y1+r, x2,y2-r, x2,y2, x2-r,y2, x1+r,y2, x1,y2, x1,y2-r, x1,y1+r, x1,y1]
+
+    def on_click(self, event):
+        if self.command:
+            self.command()
+            
+    def on_enter(self, event):
+        self.itemconfig(self.rect, fill=self.hover_color)
+        
+    def on_leave(self, event):
+        self.itemconfig(self.rect, fill=self.bg_color)
 
 current_user = None
 local_users = auth.load_local_users()
@@ -1125,8 +1155,11 @@ def attempt_login(event=None):
 
 entry_login_pass.bind("<Return>", attempt_login)
 
-btn_login = tk.Button(login_inner, text="Login", font=("Helvetica", 14, "bold"), bg="#6A0dad", fg="white", command=attempt_login, width=15)
-btn_login.grid(row=2, column=0, columnspan=2, pady=30)
+login_btn_frame = tk.Frame(login_inner, bg=_APP_BG)
+login_btn_frame.grid(row=2, column=0, columnspan=2, pady=30)
+ModernButton(login_btn_frame, text="Login", width=200, height=44, radius=22,
+             bg_color="#6A0dad", hover_color="#800080",
+             font=("Helvetica", 14, "bold"), command=attempt_login).pack()
 
 try:
     icon = tk.PhotoImage(file=get_resource_path("assets/favicon.png"))
@@ -1192,42 +1225,7 @@ else:
 
 
 
-class ModernButton(tk.Canvas):
-    def __init__(self, parent, text, command=None, width=160, height=36, radius=18, 
-                 bg_color="#6A0dad", hover_color="#800080", fg_color="white", 
-                 font=('Helvetica', 14, 'bold'), **kwargs):
-        # Determine parent background color for seamless blending
-        parent_bg = _APP_BG
-            
-        super().__init__(parent, width=width, height=height, bg=parent_bg, highlightthickness=0, **kwargs)
-        self.command = command
-        self.bg_color = bg_color
-        self.hover_color = hover_color
-        
-        # Draw rounded rectangle
-        self.rect = self.create_polygon(self._get_pts(0, 0, width, height, radius), smooth=True, fill=bg_color, outline='')
-        # Draw text
-        self.text_item = self.create_text(width/2, height/2, text=text, fill=fg_color, font=font)
-        
-        # Bind events (only tag bindings to avoid double-fire)
-        self.tag_bind(self.rect, '<Button-1>', self.on_click)
-        self.tag_bind(self.text_item, '<Button-1>', self.on_click)
-        self.tag_bind(self.rect, '<Enter>', self.on_enter)
-        self.tag_bind(self.text_item, '<Enter>', self.on_enter)
-        self.bind('<Leave>', self.on_leave)
-        
-    def _get_pts(self, x1, y1, x2, y2, r):
-        return [x1+r,y1, x2-r,y1, x2,y1, x2,y1+r, x2,y2-r, x2,y2, x2-r,y2, x1+r,y2, x1,y2, x1,y2-r, x1,y1+r, x1,y1]
-
-    def on_click(self, event):
-        if self.command:
-            self.command()
-            
-    def on_enter(self, event):
-        self.itemconfig(self.rect, fill=self.hover_color)
-        
-    def on_leave(self, event):
-        self.itemconfig(self.rect, fill=self.bg_color)
+# ModernButton is defined above (before login frame)
 
 # --- Canvas-based custom tab bar with rounded corners ---
 _TAB_NAMES = ['Generate Quote', 'Database', 'History', 'About']
