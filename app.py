@@ -35,7 +35,7 @@ except AttributeError:
 else:
     ssl._create_default_https_context = _create_unverified_https_context
 
-APP_VERSION = "1.0.6"
+APP_VERSION = "1.0.7"
 VERSION_URL = "https://raw.githubusercontent.com/Adhamkhalidsayed/X-Nova-Quotation-App/master/version.json"
 
 def get_resource_path(relative_path):
