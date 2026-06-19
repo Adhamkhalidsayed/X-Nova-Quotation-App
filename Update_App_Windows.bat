@@ -14,7 +14,7 @@ if not exist "venv_win" (
 call venv_win\Scripts\activate.bat
 
 echo [2/4] Installing Dependencies and PyInstaller...
-pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client pyinstaller
+pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client pymupdf pyinstaller
 
 echo [3/4] Rebuilding App via PyInstaller...
 rmdir /s /q build

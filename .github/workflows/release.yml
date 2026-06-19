@@ -51,7 +51,7 @@ jobs:
           python-version: '3.11'
           
       - name: Install dependencies
-        run: pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client pyinstaller
+        run: pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client pymupdf pyinstaller
         
       - name: Create Secrets
         run: echo '${{ secrets.GCP_CLIENT_SECRET }}' > client_secret.json
@@ -92,7 +92,7 @@ jobs:
           python-version: '3.11'
           
       - name: Install dependencies
-        run: pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client pyinstaller
+        run: pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client pymupdf pyinstaller
         
       - name: Create Secrets
         shell: bash

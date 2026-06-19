@@ -15,7 +15,7 @@ fi
 
 source venv_mac/bin/activate
 echo "Verifying dependencies..."
-pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client
+pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client pymupdf
 
 # Run the app in the foreground
 python3 app.py

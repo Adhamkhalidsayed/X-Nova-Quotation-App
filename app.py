@@ -9,6 +9,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from PyPDF2 import PdfWriter, PdfReader
 import io
 import os
+import fitz
 import json
 import textwrap
 import re
@@ -35,7 +36,7 @@ except AttributeError:
 else:
     ssl._create_default_https_context = _create_unverified_https_context
 
-APP_VERSION = "1.2.2"
+APP_VERSION = "1.2.3"
 VERSION_URL = "https://raw.githubusercontent.com/Adhamkhalidsayed/X-Nova-Quotation-App/master/version.json"
 
 def get_resource_path(relative_path):
@@ -111,8 +112,9 @@ def perform_update(download_url):
                     f.write('chmod -R 755 "/Applications/X Nova Quotation.app"\n')
                     f.write('echo "Removing quarantine..."\n')
                     f.write('xattr -cr "/Applications/X Nova Quotation.app"\n')
-                    f.write('echo "Opening new app..."\n')
-                    f.write('open "/Applications/X Nova Quotation.app"\n')
+                    f.write('echo "Revealing in Finder..."\n')
+                    f.write('open -R "/Applications/X Nova Quotation.app"\n')
+                    f.write('osascript -e \'display notification "Update installed! Please open X Nova Quotation from Applications." with title "X Nova Updated"\'\n')
                     f.write('echo "Done!"\n')
                 
                 os.chmod(script_path, 0o755)
@@ -348,6 +350,7 @@ def add_product():
         tree.insert("", tk.END, values=(group_key, prod_details["name"], qty, prod_details["price"]))
     
     entry_qty.delete(0, tk.END)
+    schedule_preview_update()
 
 def clear_list():
     global current_quote_items, group_base_categories
@@ -355,6 +358,7 @@ def clear_list():
     group_base_categories = {}
     for item in tree.get_children():
         tree.delete(item)
+    schedule_preview_update()
 
 def remove_product():
     selected = tree.selection()
@@ -374,6 +378,7 @@ def remove_product():
             del current_quote_items[category]
     
     tree.delete(item)
+    schedule_preview_update()
 
 def edit_quantity():
     selected = tree.selection()
@@ -407,26 +412,24 @@ def edit_quantity():
                     p["qty"] = f"{new_qty} pieces"
                     break
         tree.item(item, values=(category, prod_name, new_qty, values[3]))
+    
+    schedule_preview_update()
 
 #3.generate pdf button functionality
-def generate_pdf():
+def _build_pdf_in_memory():
     client_name = entry_name.get()
     client_location = entry_location.get()
     revision_version = entry_version.get()
     quote_number = entry_quote_number.get().strip() or get_next_quote_number()
-    # Update the UI field with the confirmed number
-    entry_quote_number.delete(0, tk.END)
-    entry_quote_number.insert(0, quote_number)
 
     if not client_name or not current_quote_items:
-        messagebox.showerror("Error", "Please enter a Client Name and add products.")
-        return
+        return None
 
     try:
         packet = io.BytesIO()
         can = canvas.Canvas(packet, pagesize=A4)
         page_width, page_height = A4
-        page_number = 0  # Track page numbers for category/product pages
+        page_number = 0
         
         # --- PAGE 2: PROJECT INFO (no page number) ---
         # 1. Draw Background First
@@ -621,17 +624,7 @@ def generate_pdf():
             if os.path.exists(get_resource_path("assets/bg_category.png")):
                 can.drawImage(get_resource_path("assets/bg_category.png"), 0, 0, width=page_width, height=page_height)
                 
-            # Draw Logo at top
-            if os.path.exists(get_resource_path("assets/logo_dark.png")):
-                try:
-                    img_logo_tot = Image.open(get_resource_path("assets/logo_dark.png"))
-                    aspect_ratio = img_logo_tot.width / img_logo_tot.height
-                    new_height = 40
-                    new_width = int(new_height * aspect_ratio)
-                    logo_x = (page_width - new_width) / 2
-                    can.drawImage(get_resource_path("assets/logo_dark.png"), logo_x, page_height - 100, width=new_width, height=new_height, preserveAspectRatio=True, mask='auto')
-                except:
-                    pass
+
 
             # Draw rounded rectangle in center
             box_width = 500
@@ -674,17 +667,7 @@ def generate_pdf():
         if os.path.exists(get_resource_path("assets/bg_category.png")):
             can.drawImage(get_resource_path("assets/bg_category.png"), 0, 0, width=page_width, height=page_height)
         
-        # Draw Logo at top
-        if os.path.exists(get_resource_path("assets/logo_dark.png")):
-            try:
-                img_logo_sum = Image.open(get_resource_path("assets/logo_dark.png"))
-                aspect_ratio = img_logo_sum.width / img_logo_sum.height
-                new_height = 40
-                new_width = int(new_height * aspect_ratio)
-                logo_x = (page_width - new_width) / 2
-                can.drawImage(get_resource_path("assets/logo_dark.png"), logo_x, page_height - 100, width=new_width, height=new_height, preserveAspectRatio=True, mask='auto')
-            except:
-                pass
+
         
         # Title: "Total Prices"
         can.setFont("Montserrat-Bold", 30)
@@ -848,29 +831,118 @@ def generate_pdf():
                 page.scale_to(float(page_width), float(page_height))
                 output.add_page(page)
             
-        pdf_name = f"{quote_number}_{client_name.replace(' ', '_')}.pdf"
-        desktop = os.path.join(str(Path.home()), "Desktop")
-        filename = filedialog.asksaveasfilename(
-            title="Save Quotation PDF",
-            initialdir=desktop,
-            initialfile=pdf_name,
-            defaultextension=".pdf",
-            filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")]
-        )
-        if not filename:
-            return  # User cancelled the save dialog
-
-        with open(filename, "wb") as f:
-            output.write(f)
-
-        save_name = os.path.basename(filename)
-        messagebox.showinfo("Success", f"Quotation saved successfully:\n{save_name}")
-        
-        # Auto-save to history
-        save_to_history(client_name, client_location, revision_version, current_quote_items, quote_number)
+        final_packet = io.BytesIO()
+        output.write(final_packet)
+        return final_packet.getvalue()
 
     except Exception as e:
-        messagebox.showerror("Error", f"An error occurred: {str(e)}")
+        print(f"Error building PDF in memory: {e}")
+        return None
+
+def generate_pdf():
+    pdf_bytes = _build_pdf_in_memory()
+    if not pdf_bytes:
+        messagebox.showerror("Error", "Please enter a Client Name and add products.")
+        return
+
+    client_name = entry_name.get()
+    client_location = entry_location.get()
+    revision_version = entry_version.get()
+    quote_number = entry_quote_number.get().strip() or get_next_quote_number()
+    
+    entry_quote_number.delete(0, tk.END)
+    entry_quote_number.insert(0, quote_number)
+
+    pdf_name = f"{quote_number}_{client_name.replace(' ', '_')}.pdf"
+    desktop = os.path.join(str(Path.home()), "Desktop")
+    filename = filedialog.asksaveasfilename(
+        title="Save Quotation PDF",
+        initialdir=desktop,
+        initialfile=pdf_name,
+        defaultextension=".pdf",
+        filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")]
+    )
+    if not filename:
+        return  # User cancelled the save dialog
+
+    with open(filename, "wb") as f:
+        f.write(pdf_bytes)
+
+    save_name = os.path.basename(filename)
+    messagebox.showinfo("Success", f"Quotation saved successfully:\n{save_name}")
+    
+    # Auto-save to history
+    save_to_history(client_name, client_location, revision_version, current_quote_items, quote_number)
+
+preview_photo = None
+preview_timer = None
+current_preview_page = 0
+total_preview_pages = 0
+
+def schedule_preview_update(*args):
+    global preview_timer
+    if preview_timer:
+        root.after_cancel(preview_timer)
+    preview_timer = root.after(500, update_live_preview)
+
+def update_live_preview(event=None):
+    if not preview_visible:
+        return
+        
+    pdf_bytes = _build_pdf_in_memory()
+    if not pdf_bytes:
+        canvas_w = preview_canvas.winfo_width()
+        canvas_h = preview_canvas.winfo_height()
+        if canvas_w < 10 or canvas_h < 10:
+            canvas_w = 430
+            canvas_h = 700
+            
+        preview_canvas.delete("all")
+        preview_canvas.create_text(canvas_w // 2, canvas_h // 2, text="No Preview Available\n(Add Client & Products)", justify="center", fill="white" if is_dark_mode else "black", font=("Helvetica", 14))
+        return
+
+    try:
+        doc = fitz.open("pdf", pdf_bytes)
+        global total_preview_pages, current_preview_page
+        total_preview_pages = doc.page_count
+        
+        if current_preview_page >= total_preview_pages:
+            current_preview_page = max(0, total_preview_pages - 1)
+            
+        page = doc.load_page(current_preview_page)
+        
+        # Determine available canvas size
+        canvas_w = preview_canvas.winfo_width()
+        canvas_h = preview_canvas.winfo_height()
+        
+        # Fallback if canvas isn't rendered yet
+        if canvas_w < 10 or canvas_h < 10:
+            canvas_w = 430
+            canvas_h = 700
+            
+        # Calculate dynamic scale factor to fit
+        page_rect = page.rect
+        scale_w = (canvas_w - 20) / page_rect.width
+        scale_h = (canvas_h - 20) / page_rect.height
+        scale = min(scale_w, scale_h)
+        
+        # Get pixmap with calculated scale
+        pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale)) 
+        
+        mode = "RGBA" if pix.alpha else "RGB"
+        img = Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+        
+        global preview_photo
+        preview_photo = ImageTk.PhotoImage(img)
+        
+        preview_canvas.delete("all")
+        # Center the image perfectly in the available canvas space
+        preview_canvas.create_image(canvas_w//2, canvas_h//2, image=preview_photo, anchor="center")
+        
+        lbl_page_info.config(text=f"Page {current_preview_page + 1} of {total_preview_pages}")
+    except Exception as e:
+        print(f"Preview error: {e}")
+
 
 # --- HISTORY FUNCTIONS ---
 HISTORY_FILE = get_data_path("history.json")
@@ -1070,25 +1142,14 @@ except:
 _APP_BG = '#2b2b2b' if is_dark_mode else '#f0f0f0'
 _FG = 'white' if is_dark_mode else 'black'
 
-# --- 4. THE DESKTOP WINDOW ---
-root = tk.Tk()
-root.title("X Nova Quotation Generator")
-win_width, win_height = 950, 850
-screen_width = root.winfo_screenwidth()
-screen_height = root.winfo_screenheight()
-x = (screen_width - win_width) // 2
-y = (screen_height - win_height) // 2
-root.geometry(f"{win_width}x{win_height}+{x}+{y}")
-root.configure(bg=_APP_BG, pady=10)
-root.minsize(950, 750)
-
-main_frame = tk.Frame(root, bg=_APP_BG)
-
 class ModernButton(tk.Canvas):
     def __init__(self, parent, text, command=None, width=160, height=36, radius=18, 
                  bg_color="#6A0dad", hover_color="#800080", fg_color="white", 
                  font=('Helvetica', 14, 'bold'), **kwargs):
-        parent_bg = _APP_BG
+        try:
+            parent_bg = parent.cget("bg")
+        except:
+            parent_bg = _APP_BG
         super().__init__(parent, width=width, height=height, bg=parent_bg, highlightthickness=0, **kwargs)
         self.command = command
         self.bg_color = bg_color
@@ -1114,24 +1175,100 @@ class ModernButton(tk.Canvas):
     def on_leave(self, event):
         self.itemconfig(self.rect, fill=self.bg_color)
 
+# --- 4. THE DESKTOP WINDOW ---
+root = tk.Tk()
+root.title("X Nova Quotation Generator")
+win_width, win_height = 1400, 850
+screen_width = root.winfo_screenwidth()
+screen_height = root.winfo_screenheight()
+x = (screen_width - win_width) // 2
+y = (screen_height - win_height) // 2
+root.geometry(f"{win_width}x{win_height}+{x}+{y}")
+root.configure(bg=_APP_BG, pady=10)
+root.minsize(1200, 750)
+
+main_paned_window = ttk.PanedWindow(root, orient=tk.HORIZONTAL)
+
+main_frame = tk.Frame(main_paned_window, bg=_APP_BG)
+main_paned_window.add(main_frame, weight=1)
+
+preview_bg = "#333333" if is_dark_mode else "#e0e0e0"
+preview_frame = tk.Frame(main_paned_window, bg=preview_bg, width=450)
+main_paned_window.add(preview_frame, weight=0)
+
+preview_visible = True
+def toggle_preview():
+    global preview_visible
+    if preview_visible:
+        main_paned_window.forget(preview_frame)
+        preview_visible = False
+    else:
+        main_paned_window.add(preview_frame, weight=0)
+        preview_visible = True
+        update_live_preview()
+
+lbl_preview = tk.Label(preview_frame, text="Live PDF Preview", font=("Helvetica", 16, "bold"), bg=preview_bg, fg=_FG)
+lbl_preview.pack(side="top", pady=(15, 5))
+
+preview_bottom_frame = tk.Frame(preview_frame, bg=preview_bg)
+preview_bottom_frame.pack(side="bottom", fill="x", pady=(5, 15))
+
+def change_preview_page(delta):
+    global current_preview_page, total_preview_pages
+    new_page = current_preview_page + delta
+    if 0 <= new_page < total_preview_pages:
+        current_preview_page = new_page
+        update_live_preview()
+
+btn_prev_page = ModernButton(preview_bottom_frame, text="<", font=("Helvetica", 16, "bold"), width=40, height=30, radius=15, command=lambda: change_preview_page(-1))
+btn_prev_page.pack(side="left", padx=15)
+
+lbl_page_info = tk.Label(preview_bottom_frame, text="Page 1 of 1", font=("Helvetica", 14), bg=preview_bg, fg="gray")
+lbl_page_info.pack(side="left", expand=True)
+
+btn_next_page = ModernButton(preview_bottom_frame, text=">", font=("Helvetica", 16, "bold"), width=40, height=30, radius=15, command=lambda: change_preview_page(1))
+btn_next_page.pack(side="right", padx=15)
+
+preview_canvas = tk.Canvas(preview_frame, bg=preview_bg, highlightthickness=0)
+preview_canvas.pack(fill="both", expand=True, padx=10, pady=10)
+
+preview_canvas.bind("<Configure>", schedule_preview_update)
+
 current_user = None
 local_users = auth.load_local_users()
 
 def show_main_app():
     login_frame.pack_forget()
-    main_frame.pack(fill="both", expand=True)
+    main_paned_window.pack(fill="both", expand=True)
     if current_user and current_user.get("role") == "admin":
         setup_admin_tab()
     # Check for updates when the app starts
     check_for_updates()
 
+try:
+    logo_file = get_resource_path("assets/logo_dark.png") if is_dark_mode else get_resource_path("assets/logo.png")
+    img_logo = Image.open(logo_file)
+    aspect_ratio = img_logo.width / img_logo.height
+    new_height = 50
+    new_width = int(new_height * aspect_ratio)
+    img_logo = img_logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    logo_photo = ImageTk.PhotoImage(img_logo)
+except Exception:
+    logo_photo = None
+
 login_frame = tk.Frame(root, bg=_APP_BG)
 login_frame.pack(fill="both", expand=True)
 
-tk.Label(login_frame, text="X Nova Quotation", font=("Helvetica", 28, "bold"), bg=_APP_BG, fg=_FG).pack(pady=(150, 10))
-tk.Label(login_frame, text="Please Login", font=("Helvetica", 16), bg=_APP_BG, fg=_FG).pack(pady=(0, 30))
+login_center_frame = tk.Frame(login_frame, bg=_APP_BG)
+login_center_frame.place(relx=0.5, rely=0.5, anchor="center")
 
-login_inner = tk.Frame(login_frame, bg=_APP_BG)
+if logo_photo:
+    tk.Label(login_center_frame, image=logo_photo, bg=_APP_BG, borderwidth=0).pack(pady=(0, 10))
+else:
+    tk.Label(login_center_frame, text="X Nova Quotation", font=("Helvetica", 28, "bold"), bg=_APP_BG, fg=_FG).pack(pady=(0, 10))
+tk.Label(login_center_frame, text="Please Login", font=("Helvetica", 16), bg=_APP_BG, fg=_FG).pack(pady=(0, 30))
+
+login_inner = tk.Frame(login_center_frame, bg=_APP_BG)
 login_inner.pack()
 
 tk.Label(login_inner, text="Username:", font=("Helvetica", 14), bg=_APP_BG, fg=_FG).grid(row=0, column=0, pady=10, sticky="e")
@@ -1186,19 +1323,12 @@ else:
     _CLR_INA_F = '#666666'
     _CLR_HOV = '#dcdcdc'
 
-try:
-    logo_file = get_resource_path("assets/logo_dark.png") if is_dark_mode else get_resource_path("assets/logo.png")
-    img_logo = Image.open(logo_file)
-    aspect_ratio = img_logo.width / img_logo.height
-    new_height = 50
-    new_width = int(new_height * aspect_ratio)
-    img_logo = img_logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
-    logo_photo = ImageTk.PhotoImage(img_logo)
-    lbl_logo = ttk.Label(main_frame, image=logo_photo)
+if logo_photo:
+    lbl_logo = tk.Label(main_frame, image=logo_photo, bg=_APP_BG, borderwidth=0)
     lbl_logo.image = logo_photo
     lbl_logo.pack(pady=10)
-except Exception:
-    ttk.Label(main_frame, text="X Nova Smart Spaces", font=("Helvetica", 16, "bold")).pack(pady=5)
+else:
+    tk.Label(main_frame, text="X Nova Smart Spaces", font=("Helvetica", 16, "bold"), bg=_APP_BG, fg=_FG).pack(pady=5)
 
 
 style = ttk.Style()
@@ -1324,6 +1454,11 @@ class TabManager(tk.Frame):
         if len(self.tabs) == 1:
             frame.pack(fill="both", expand=True)
             
+    def insert(self, index, frame, text=""):
+        self.tabs.insert(index, frame)
+        if len(self.tabs) == 1:
+            frame.pack(fill="both", expand=True)
+            
     def select(self, idx=None):
         if idx is None:
             return self.tabs[self._current_index] if self.tabs else None
@@ -1354,21 +1489,26 @@ quote_num_frame = ttk.Frame(frame_client)
 quote_num_frame.grid(row=0, column=1, sticky="w", pady=2, padx=5)
 entry_quote_number = tk.Entry(quote_num_frame, width=20)
 entry_quote_number.pack(side="left")
+entry_quote_number.bind("<KeyRelease>", schedule_preview_update)
 ttk.Label(quote_num_frame, text="  (leave blank to auto-assign)", foreground="gray").pack(side="left")
 ttk.Label(frame_client, text="Client Name:").grid(row=1, column=0, sticky="w")
 entry_name = tk.Entry(frame_client, width=60)
 entry_name.grid(row=1, column=1, pady=2, padx=5)
+entry_name.bind("<KeyRelease>", schedule_preview_update)
 ttk.Label(frame_client, text="Project Location:").grid(row=2, column=0, sticky="w")
 entry_location = tk.Entry(frame_client, width=60)
 entry_location.grid(row=2, column=1, pady=2, padx=5)
+entry_location.bind("<KeyRelease>", schedule_preview_update)
 ttk.Label(frame_client, text="Revision Version:").grid(row=3, column=0, sticky="w")
 entry_version = tk.Entry(frame_client, width=60)
 entry_version.insert(0, "1.0.0") 
 entry_version.grid(row=3, column=1, pady=2, padx=5)
+entry_version.bind("<KeyRelease>", schedule_preview_update)
 ttk.Label(frame_client, text="Discount %:").grid(row=4, column=0, sticky="w")
 entry_discount = tk.Entry(frame_client, width=20)
 entry_discount.insert(0, "0")
 entry_discount.grid(row=4, column=1, sticky="w", pady=2, padx=5)
+entry_discount.bind("<KeyRelease>", schedule_preview_update)
 
 frame_products = ttk.LabelFrame(tab_generator, text="2. Add Products to Quote", padding=10)
 frame_products.pack(fill="x", pady=5, padx=10)
@@ -1395,13 +1535,15 @@ lbl_product_preview = ttk.Label(frame_products, text="Preview", width=15, anchor
 lbl_product_preview.grid(row=0, column=2, rowspan=5, padx=20, pady=5)
 combo_product.bind("<<ComboboxSelected>>", preview_product_image)
 # Pack bottom elements FIRST so they reserve space (bottom-up order)
-ModernButton(tab_generator, text="Generate PDF Quotation", width=250, height=45, radius=22, bg_color="#6A0dad", hover_color="#800080", font=("Helvetica", 12, "bold"), command=generate_pdf).pack(side="bottom", pady=8)
+ModernButton(tab_generator, text="Generate PDF Quotation", width=250, height=45, radius=22, bg_color="#6A0dad", hover_color="#800080", font=("Helvetica", 12, "bold"), command=generate_pdf).pack(side="bottom", pady=(10, 15))
 
 btn_frame = ttk.Frame(tab_generator)
-btn_frame.pack(side="bottom", fill="x", padx=15, pady=(0, 5))
+btn_frame.pack(side="bottom", fill="x", padx=15, pady=(10, 15))
 ModernButton(btn_frame, text="Remove Selected", width=140, height=32, radius=16, bg_color="#f44336", hover_color="#da190b", font=("Helvetica", 10, "bold"), command=remove_product).pack(side="left", padx=5)
 ModernButton(btn_frame, text="Edit Quantity", width=120, height=32, radius=16, bg_color="#2196F3", hover_color="#0b7dda", font=("Helvetica", 10, "bold"), command=edit_quantity).pack(side="left", padx=5)
 ModernButton(btn_frame, text="Clear List", width=100, height=32, radius=16, bg_color="#ff9800", hover_color="#e68a00", font=("Helvetica", 10, "bold"), command=clear_list).pack(side="left", padx=5)
+
+ModernButton(btn_frame, text="Toggle Live Preview", width=160, height=32, radius=16, bg_color="#6A0dad", hover_color="#800080", font=("Helvetica", 10, "bold"), command=toggle_preview).pack(side="right", padx=5)
 
 frame_list = ttk.LabelFrame(tab_generator, text="3. Items in Quotation", padding=5)
 frame_list.pack(fill="both", expand=True, pady=(5, 0), padx=10)
@@ -1836,21 +1978,21 @@ except:
 
 
 # --- ABOUT TAB ---
-tab_about = ttk.Frame(notebook)
+tab_about = tk.Frame(notebook, bg=_APP_BG)
 notebook.add(tab_about, text="About")
 
 about_container = tk.Frame(tab_about, bg=_APP_BG)
 about_container.place(relx=0.5, rely=0.5, anchor="center")
 
 try:
-    lbl_about_logo = ttk.Label(about_container, image=logo_photo)
+    lbl_about_logo = tk.Label(about_container, image=logo_photo, bg=_APP_BG, borderwidth=0)
     lbl_about_logo.pack(pady=20)
-except:
-    pass
+except Exception:
+    tk.Label(about_container, text="X Nova Smart Spaces", font=("Helvetica", 20, "bold"), bg=_APP_BG, fg=_FG).pack(pady=20)
 
-ttk.Label(about_container, text="X Nova Quotation App", font=("Helvetica", 24, "bold")).pack(pady=10)
-ttk.Label(about_container, text=f"Version {APP_VERSION}", font=("Helvetica", 14)).pack(pady=5)
-ttk.Label(about_container, text="Built for X Nova Smart Spaces", font=("Helvetica", 12, "italic"), foreground="#888888").pack(pady=(0, 30))
+tk.Label(about_container, text="Quotation Generator App", font=("Helvetica", 16), bg=_APP_BG, fg=_FG).pack(pady=5)
+tk.Label(about_container, text=f"Version {APP_VERSION}", font=("Helvetica", 12), bg=_APP_BG, fg="gray").pack(pady=5)
+tk.Label(about_container, text="© 2026 Adham Khaled. All rights reserved.", font=("Helvetica", 10), bg=_APP_BG, fg="gray").pack(pady=20)
 
 ModernButton(about_container, text="Check for Updates", width=220, height=45, radius=22, 
              bg_color="#2196F3", hover_color="#0b7dda", font=("Helvetica", 14, "bold"), 
@@ -1865,10 +2007,11 @@ _apply_db_scroll_override(scrollable_db_frame)
 def setup_admin_tab():
     global admin_tree
     tab_admin = ttk.Frame(notebook)
-    notebook.add(tab_admin, text="Admin")
+    # Insert before the last tab (About)
+    notebook.insert(-1, tab_admin, text="Admin")
     
     # Need to redraw tabs to show the new one
-    _TAB_NAMES.append("Admin")
+    _TAB_NAMES.insert(-1, "Admin")
     _draw_tabs()
     
     lbl = tk.Label(tab_admin, text="User Management", font=("Helvetica", 20, "bold"))

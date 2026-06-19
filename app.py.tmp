@@ -1,0 +1,1 @@
+awk '/<<<<<<< HEAD/{flag=1; next} /======={flag=2; next} />>>>>>> b83ad19 \(Remove gist update since repo is public and use raw github URL\)/{flag=0; next} {if(flag==0) print $0}' app.py > app.py.tmp2

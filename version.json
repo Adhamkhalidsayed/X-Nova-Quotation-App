@@ -1,4 +1,4 @@
 {
-  "version": "1.2.2",
-  "notes": "Fix auto-updater permissions on macOS."
+  "version": "1.2.3",
+  "notes": "Added Live PDF Preview, UI polishing, layout adjustments, and performance optimizations."
 }

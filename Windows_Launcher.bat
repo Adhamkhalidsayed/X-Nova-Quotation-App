@@ -9,7 +9,7 @@ if not exist "venv_win" (
 )
 call venv_win\Scripts\activate.bat
 echo Verifying dependencies...
-pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client
+pip install reportlab pypdf2 pillow gspread google-auth google-auth-oauthlib google-api-python-client pymupdf
 
 
 REM Run the app in the foreground to see any errors
